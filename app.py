@@ -1,10 +1,14 @@
 import streamlit as st
 import google.generativeai as genai
 from gtts import gTTS
-import speech_recognition as sr
 import os
 from io import BytesIO
 from dotenv import load_dotenv
+import sounddevice as sd
+from scipy.io.wavfile import write
+import speech_recognition as sr
+import tempfile
+import numpy as np
 
 # Load environment variables
 load_dotenv()
@@ -25,17 +29,24 @@ st.markdown("---")
 
 recognizer = sr.Recognizer()
 
-def record_audio():
-    """Record user's voice until silence, with safe timeout handling."""
-    with sr.Microphone() as source:
-        recognizer.adjust_for_ambient_noise(source, duration=0.8)
-        st.toast("🎧 Listening... Speak now!", icon="🎤")
-        try:
-            audio = recognizer.listen(source, timeout=5, phrase_time_limit=10)
-        except sr.WaitTimeoutError:
-            st.toast("⏱️ No speech detected. Try again!", icon="⚠️")
-            return None
-
+def record_audio(duration=5, fs=44100):
+    """Record user's voice and convert to PCM WAV for recognition."""
+    st.toast("🎧 Listening... Speak now!", icon="🎤")
+    
+    # Record audio
+    recording = sd.rec(int(duration * fs), samplerate=fs, channels=1, dtype='float32')
+    sd.wait()
+    
+    # Convert to 16-bit PCM
+    recording_int16 = np.int16(recording * 32767)
+    
+    # Save to temporary WAV file
+    tmp_file = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
+    write(tmp_file.name, fs, recording_int16)
+    
+    # Recognize audio
+    with sr.AudioFile(tmp_file.name) as source:
+        audio = recognizer.record(source)
     try:
         text = recognizer.recognize_google(audio)
         st.toast(f"🗣️ You said: {text}", icon="💬")
@@ -66,7 +77,7 @@ with col2:
     # Centered Speak button
     st.markdown("<div style='text-align:center;'>", unsafe_allow_html=True)
     if st.button("🎤 Speak", key="mic"):
-        user_input = record_audio()
+        user_input = record_audio(duration=7)  # Adjust duration if needed
     st.markdown("</div>", unsafe_allow_html=True)
 
     # OR separator
@@ -88,3 +99,4 @@ if user_input:
 
 st.markdown("---")
 st.caption("Made by **Anurag Chaudhary** for 100x AI Agent Assessment 🚀")
+
