@@ -1,10 +1,7 @@
 streamlit
 google-generativeai
-gTTS
+gtts
 speechrecognition
-sounddevice
-scipy
-numpy
+pydub
 python-dotenv
-
-
+streamlit-mic-recorder
